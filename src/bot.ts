@@ -546,7 +546,6 @@ client.on("messageCreate", async message => {
         return;
     }
 
-    if (payload.type !== "MOVE" && payload.type !== "MOVEALL") return;
     if (payload.type === "MOVEALL") {
         const guild = message.guild;
         if (!guild) return;
@@ -574,13 +573,7 @@ client.on("messageCreate", async message => {
                 payload.discordUsername.toLowerCase()
         );
 
-        const otherMember = guild.members.cache.find(
-            m =>
-                m.user.username.toLowerCase() ===
-                payload.discordUsername2.toLowerCase()
-        );
-
-        if (!member || !member.voice.channel || !otherMember || !otherMember.voice.channel) return;
+        if (!member || !member.voice.channel) return;
 
         const category = guild.channels.cache.find(
             ch =>
@@ -678,6 +671,7 @@ client.on("messageCreate", async message => {
             console.error("RETURN failed:", err);
         }
     }
+    return;
 });
 
 client.on('interactionCreate', async (interaction) => {
