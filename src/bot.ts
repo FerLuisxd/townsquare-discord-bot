@@ -68,6 +68,9 @@ const commands = [
     new SlashCommandBuilder()
         .setName('moveallplayerstomain')
         .setDescription('Move all players to the main channel'),
+    new SlashCommandBuilder()
+        .setName('joinasplayer')
+        .setDescription('Join the game as a player'),
 ].map(command => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
@@ -329,7 +332,7 @@ async function setupTownsquare(interaction: ChatInputCommandInteraction) {
         await createPublicRoom('Potion Shop');
         await createPublicRoom('Library');
 
-        for (let i = 1; i <= 5; i++) {
+        for (let i = 1; i <= 8; i++) {
             await guild.channels.create({
                 name: `private-room-${i}`,
                 type: ChannelType.GuildVoice,
@@ -523,9 +526,52 @@ async function switchToSpectator(interaction: ChatInputCommandInteraction) {
     }
 }
 
+
+async function joinAsPlayer(interaction: ChatInputCommandInteraction) {
+    await interaction.deferReply({ ephemeral: true });
+
+    const guild = interaction.guild;
+    const member = interaction.member as GuildMember;
+
+    if (!guild || !member) {
+        await interaction.editReply('This command must be used in a server!');
+        return;
+    }
+
+    try {
+        const playerRole = guild.roles.cache.find(r => r.name === 'Player');
+        if (!playerRole) {
+            await interaction.editReply('❌ Player role not found! Run /setup first.');
+            return;
+        }
+
+        await member.roles.add(playerRole);
+        await interaction.editReply('✅ You are now a Player!');
+
+    } catch (error) {
+        console.error('Error joining as player:', error);
+        await interaction.editReply('❌ An error occurred while joining.');
+    }
+}
+
 client.on('ready', () => {
     console.log(`✅ Bot logged in as ${client.user?.tag}`);
     registerCommands();
+});
+
+client.on('guildCreate', async (guild) => {
+    try {
+        const channel = guild.systemChannel || guild.channels.cache.find(
+            ch => ch.type === ChannelType.GuildText &&
+                ch.permissionsFor(guild.members.me!)?.has(PermissionFlagsBits.SendMessages)
+        ) as TextChannel;
+
+        if (channel) {
+            await channel.send('Hello! \nTo get started, run /setup to get the rooms and get the webhook link!');
+        }
+    } catch (error) {
+        console.error('Error sending welcome message:', error);
+    }
 });
 
 client.on("messageCreate", async message => {
@@ -671,6 +717,38 @@ client.on("messageCreate", async message => {
             console.error("RETURN failed:", err);
         }
     }
+    else if (payload.type === "MUTE") {
+        const guild = message.guild;
+        if (!guild) return;
+
+        const playerRole = guild.roles.cache.find(r => r.name === 'Player');
+        if (!playerRole) return;
+
+        for (const [, member] of guild.members.cache) {
+            if (
+                member.roles.cache.has(playerRole.id) &&
+                member.voice.channel
+            ) {
+                await member.voice.setMute(true, 'Townsquare MUTE').catch(() => { });
+            }
+        }
+    }
+    else if (payload.type === "UNMUTE") {
+        const guild = message.guild;
+        if (!guild) return;
+
+        const playerRole = guild.roles.cache.find(r => r.name === 'Player');
+        if (!playerRole) return;
+
+        for (const [, member] of guild.members.cache) {
+            if (
+                member.roles.cache.has(playerRole.id) &&
+                member.voice.channel
+            ) {
+                await member.voice.setMute(false, 'Townsquare UNMUTE').catch(() => { });
+            }
+        }
+    }
     return;
 });
 
@@ -700,6 +778,8 @@ client.on('interactionCreate', async (interaction) => {
         }
         else if (commandName === 'moveallplayerstomain') {
             await moveAllPlayersToMain(interaction);
+        } else if (commandName === 'joinasplayer') {
+            await joinAsPlayer(interaction);
         }
     } catch (error) {
         console.error('Error handling command:', error);
