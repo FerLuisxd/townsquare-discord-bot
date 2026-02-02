@@ -13,8 +13,6 @@ import {
     StageChannel,
     VoiceChannel,
     Guild,
-    Role,
-    GuildBasedChannel,
     Collection
 } from 'discord.js';
 
